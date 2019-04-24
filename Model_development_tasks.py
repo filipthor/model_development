@@ -25,6 +25,37 @@ def black_scholes_european_nodividend(S, K, T, r, sigma, option="call"):
     if option == "put": K * np.exp(-r * (T)) * sp.norm.cdf(-d2, 0, 1) - S * sp.norm.cdf(-d1, 0, 1)
 
 
+def extract_historical_data(filenames, index="Seneste", date_column_name="Dato", data_merge_method="outer"):
+    '''
+
+    :param filenames: list of excel filenames as strings to read, from the same folder
+    :param index: name of column of which type of data to read; opening, high, low, latest price.
+    :param date_column_name: name of column where date information is stored
+    :param data_merge_method: if there are dates missing, this determines the way to merge the data, by reducing the missing dates or increasing, placing NaNs where data is missing
+    :return: DataFrame with columns: Date, followed by the specified price for each equity 
+    '''
+    files = []
+    for f in filenames:
+        files.append(pd.read_excel(f))  # reads equity data from files
+
+    df = pd.Series.to_frame(
+        files[0][date_column_name])  # Extracting first column from data to which merging equity price columns
+
+    for f in files:
+        df = pd.merge(df, f[[date_column_name, index]], on=date_column_name,
+                      how=data_merge_method)  # adds column of data based on indicated price, merging based on merge type
+
+    df.sort_values(by=[date_column_name], inplace=True,
+                   ascending=False)  # sorts data in descending order in case data got jumbled when merging
+
+    for i in range(len(filenames)):
+        df.rename(columns={df.columns[i + 1]: filenames[i]},
+                  inplace=True)  # setting names of columns based on file name
+
+    return df
+
+
+
 def correlation(df):
     '''
     
@@ -32,6 +63,24 @@ def correlation(df):
     :return: DataFrame, correlation matrix 
     '''
     return pd.DataFrame(data=df).corr()  # returns correlation matrix
+
+
+def extract_prices(filenames):
+    '''
+
+    :param filenames: list of excel filenames as strings to read, from the same folder
+    :return: the last known price for each equity listed in filenames
+    '''
+    files = []
+    for f in filenames:
+        files.append(pd.read_excel(f))  # extracts all equitiy data from list of files to read
+
+    S = np.zeros(len(filenames))
+    for i in range(len(files)):
+        S[i] = files[i].iloc[[-1], 4].values  # extracts latest price (column 4) from each equity
+
+    return S
+
 
 
 def basket_option(S, rho, a, T, K, r, dividend, volatility, option="call"):
@@ -68,47 +117,7 @@ def basket_option(S, rho, a, T, K, r, dividend, volatility, option="call"):
 
 
 
-def extract_historical_data(filenames, index="Seneste", date_column_name="Dato", data_merge_method="outer"):
-    '''
-    
-    :param filenames: list of excel filenames as strings to read, from the same folder
-    :param index: name of column of which type of data to read; opening, high, low, latest price.
-    :param date_column_name: name of column where date information is stored
-    :param data_merge_method: if there are dates missing, this determines the way to merge the data, by reducing the missing dates or increasing, placing NaNs where data is missing
-    :return: DataFrame with columns: Date, followed by the specified price for each equity 
-    '''
-    files = []
-    for f in filenames:
-        files.append(pd.read_excel(f))  # reads equity data from files
 
-    df = pd.Series.to_frame(files[0][date_column_name])  # Extracting first column from data to which merging equity price columns
-
-    for f in files:
-        df = pd.merge(df, f[[date_column_name, index]], on=date_column_name, how=data_merge_method)  # adds column of data based on indicated price, merging based on merge type
-
-    df.sort_values(by=[date_column_name], inplace=True, ascending=False)  # sorts data in descending order in case data got jumbled when merging
-
-    for i in range(len(filenames)):
-        df.rename(columns={df.columns[i + 1]: filenames[i]}, inplace=True)  # setting names of columns based on file name
-
-    return df
-
-
-def extract_prices(filenames):
-    '''
-    
-    :param filenames: list of excel filenames as strings to read, from the same folder
-    :return: the last known price for each equity listed in filenames
-    '''
-    files = []
-    for f in filenames:
-        files.append(pd.read_excel(f))  # extracts all equitiy data from list of files to read
-
-    S = np.zeros(len(filenames))
-    for i in range(len(files)):
-        S[i] = files[i].iloc[[-1], 4].values  # extracts latest price (column 4) from each equity
-
-    return S
 
 
 #===== test data =====#
